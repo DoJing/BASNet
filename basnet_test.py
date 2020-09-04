@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms#, utils
 # import torch.optim as optim
-
+import cv2
 import numpy as np
 from PIL import Image
 import glob
@@ -20,6 +20,7 @@ from data_loader import ToTensorLab
 from data_loader import SalObjDataset
 
 from model import BASNet
+import sys
 
 def normPRED(d):
 	ma = torch.max(d)
@@ -28,6 +29,24 @@ def normPRED(d):
 	dn = (d-mi)/(ma-mi)
 
 	return dn
+
+def save_roi(image_name,pred,dir):
+	image = cv2.imread(image_name)
+	predict = pred.squeeze()
+	predict = predict.cpu().data.numpy()
+	predict = cv2.resize(predict,(image.shape[1],image.shape[0]))
+	cv2.threshold(predict, 0.001, 1.0, cv2.THRESH_BINARY,predict)
+	kernel = np.ones((10, 10), np.uint8)
+	cv2.dilate(predict, kernel,predict,iterations=3)
+	predict = np.tile(predict[:,:,np.newaxis], (1,1,3))
+	image = np.multiply(image,predict)
+	# cv2.imshow("m",predict)
+	# cv2.imshow("img",image)
+	# cv2.waitKey()
+	img_name = image_name.split("/")[-1]
+	img_name = img_name[0:-4]+"_mask"+img_name[-4:]
+	cv2.imwrite(dir+'/'+img_name,predict*255)
+
 
 def save_output(image_name,pred,d_dir):
 
@@ -50,13 +69,19 @@ def save_output(image_name,pred,d_dir):
 
 	imo.save(d_dir+imidx+'.png')
 
+
+if len(sys.argv) < 3:
+	print("Usage: python3 basenet_test input_dir out_dir\n")
+	sys.exit(1)
+image_dir = sys.argv[1]
+prediction_dir = sys.argv[2]
+
+print("image_dir ", image_dir)
+print("prediction_dir ", prediction_dir)
 # --------- 1. get image path and name ---------
+model_dir = '/home/dojing/SFM/BASNet/saved_models/basnet.pth'
 
-image_dir = './test_data/test_images/'
-prediction_dir = './test_data/test_results/'
-model_dir = './saved_models/basnet_bsi/basnet.pth'
-
-img_name_list = glob.glob(image_dir + '*.jpg')
+img_name_list = glob.glob(image_dir + '/*.jpg')
 
 # --------- 2. dataloader ---------
 #1. dataload
@@ -91,6 +116,6 @@ for i_test, data_test in enumerate(test_salobj_dataloader):
 	pred = normPRED(pred)
 
 	# save results to test_results folder
-	save_output(img_name_list[i_test],pred,prediction_dir)
+	save_roi(img_name_list[i_test],pred,prediction_dir)
 
 	del d1,d2,d3,d4,d5,d6,d7,d8
