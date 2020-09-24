@@ -80,8 +80,11 @@ print("image_dir ", image_dir)
 print("prediction_dir ", prediction_dir)
 # --------- 1. get image path and name ---------
 model_dir = '/home/dojing/SFM/BASNet/saved_models/basnet.pth'
+img_name_list = []
+for ext in ('/*.gif', '/*.png', '/*.jpg', '/*.JPG'):
+	img_name_list.extend(glob.glob(image_dir + ext))
 
-img_name_list = glob.glob(image_dir + '/*.jpg')
+
 
 # --------- 2. dataloader ---------
 #1. dataload
